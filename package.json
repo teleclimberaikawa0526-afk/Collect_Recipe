@@ -5,11 +5,11 @@
   "dependencies": {
     "@expo/ui": "~57.0.9",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-native-voice/voice": "^3.2.4",
     "expo": "~57.0.11",
     "expo-auth-session": "~57.0.6",
     "expo-constants": "~57.0.9",
     "expo-crypto": "~57.0.1",
+    "expo-dev-client": "~57.0.10",
     "expo-device": "~57.0.1",
     "expo-font": "~57.0.1",
     "expo-glass-effect": "~57.0.1",
