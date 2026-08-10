@@ -1,25 +1,39 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import * as Google from 'expo-auth-session/providers/google';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { auth } from '../config/firebase';
-import * as WebBrowser from 'expo-web-browser';
-
-WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '934267002111-459180v8kjn413laqmni6u28q7rdd0dn.apps.googleusercontent.com',
-    androidClientId: '934267002111-cbtva7fho683rrlic543oa6eanfv3ph8.apps.googleusercontent.com',
-  });
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      const credential = GoogleAuthProvider.credential(id_token);
-      signInWithCredential(auth, credential).catch(console.error);
+    GoogleSignin.configure({
+      webClientId: '934267002111-459180v8kjn413laqmni6u28q7rdd0dn.apps.googleusercontent.com',
+      offlineAccess: false,
+    });
+  }, []);
+
+  const signIn = async () => {
+    try {
+      setIsSigningIn(true);
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken;
+      if (idToken) {
+        const credential = GoogleAuthProvider.credential(idToken);
+        await signInWithCredential(auth, credential);
+      }
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // ユーザーがキャンセルした場合
+      } else {
+        console.error(error);
+      }
+    } finally {
+      setIsSigningIn(false);
     }
-  }, [response]);
+  };
 
   return (
     <View style={styles.container}>
@@ -28,10 +42,14 @@ export default function LoginScreen() {
       
       <TouchableOpacity
         style={styles.button}
-        disabled={!request}
-        onPress={() => promptAsync()}
+        disabled={isSigningIn}
+        onPress={signIn}
       >
-        <Text style={styles.buttonText}>Googleでログイン</Text>
+        {isSigningIn ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Googleでログイン</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
