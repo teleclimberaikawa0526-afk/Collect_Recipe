@@ -3,10 +3,10 @@ import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, Activity
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { collection, addDoc, query, where, onSnapshot, or } from 'firebase/firestore';
-import { db } from '../../config/firebase';
-import { useAuth } from '../../hooks/useAuth';
-import { extractRecipeFromUrl } from '../../utils/extractRecipe';
-import { Recipe } from '../../types/recipe';
+import { db } from '../config/firebase';
+import { useAuth } from '../hooks/useAuth';
+import { extractRecipeFromUrl } from '../utils/extractRecipe';
+import { Recipe } from '../types/recipe';
 
 export default function HomeScreen() {
   const { user } = useAuth();
