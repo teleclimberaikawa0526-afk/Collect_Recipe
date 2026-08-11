@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Alert, Image, Modal } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Alert, Image, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { collection, addDoc, query, where, onSnapshot, or, deleteDoc, doc, updateDoc, arrayUnion } from 'firebase/firestore';
@@ -7,6 +7,7 @@ import { db } from '../config/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { extractRecipeFromUrl } from '../utils/extractRecipe';
 import { Recipe } from '../types/recipe';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -19,9 +20,10 @@ export default function HomeScreen() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
-  // Bulk share modal states
+  // Modals
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [shareEmail, setShareEmail] = useState('');
+  const [guideModalVisible, setGuideModalVisible] = useState(false);
 
   useEffect(() => {
     if (!user || !user.email) return;
@@ -40,7 +42,6 @@ export default function HomeScreen() {
         ...doc.data()
       })) as Recipe[];
       
-      // Sort in memory (newest first)
       fetched.sort((a, b) => b.createdAt - a.createdAt);
       setRecipes(fetched);
     });
@@ -189,17 +190,26 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>マイレシピ</Text>
-        <TouchableOpacity 
-          style={styles.selectModeButton}
-          onPress={() => {
-            if (isSelectMode) {
-              setSelectedIds(new Set());
-            }
-            setIsSelectMode(!isSelectMode);
-          }}
-        >
-          <Text style={styles.selectModeText}>{isSelectMode ? 'キャンセル' : '選択'}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.guideButton}
+            onPress={() => setGuideModalVisible(true)}
+          >
+            <Ionicons name="mic-circle-outline" size={24} color="#4285F4" />
+            <Text style={styles.guideButtonText}>音声ガイド</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.selectModeButton}
+            onPress={() => {
+              if (isSelectMode) {
+                setSelectedIds(new Set());
+              }
+              setIsSelectMode(!isSelectMode);
+            }}
+          >
+            <Text style={styles.selectModeText}>{isSelectMode ? 'キャンセル' : '選択'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       
       {!isSelectMode && (
@@ -239,7 +249,7 @@ export default function HomeScreen() {
       />
 
       {/* Share Modal */}
-      <Modal visible={shareModalVisible} transparent animationType="slide">
+      <Modal visible={shareModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>まとめてシェア</Text>
@@ -263,6 +273,42 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Voice Guide Modal */}
+      <Modal visible={guideModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.guideContent}>
+            <Text style={styles.modalTitle}>🎙️ 音声コントロールの使い方</Text>
+            <ScrollView style={styles.guideScroll}>
+              <Text style={styles.guideDesc}>レシピ詳細画面では、料理中で手が離せない時でも、声を使ってハンズフリーで操作ができます！スマホに向かって以下のようにお話しください。</Text>
+              
+              <View style={styles.guideItem}>
+                <Text style={styles.guideCommand}>「次」</Text>
+                <Text style={styles.guideDetail}>画面を少し下へスクロールします。</Text>
+              </View>
+              
+              <View style={styles.guideItem}>
+                <Text style={styles.guideCommand}>「戻る」</Text>
+                <Text style={styles.guideDetail}>画面を少し上へスクロールします。</Text>
+              </View>
+
+              <View style={styles.guideItem}>
+                <Text style={styles.guideCommand}>「最初から」</Text>
+                <Text style={styles.guideDetail}>画面の一番上まで一気に戻ります。</Text>
+              </View>
+
+              <View style={styles.guideItem}>
+                <Text style={styles.guideCommand}>「材料を読んで」</Text>
+                <Text style={styles.guideDetail}>そのレシピの材料をすべて音声で読み上げます。</Text>
+              </View>
+
+            </ScrollView>
+            <TouchableOpacity style={styles.guideCloseButton} onPress={() => setGuideModalVisible(false)}>
+              <Text style={styles.guideCloseButtonText}>閉じる</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -271,6 +317,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#333' },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  guideButton: { flexDirection: 'row', alignItems: 'center', marginRight: 15 },
+  guideButtonText: { color: '#4285F4', fontWeight: 'bold', fontSize: 13, marginLeft: 4 },
   selectModeButton: { padding: 8, backgroundColor: '#eef2ff', borderRadius: 8 },
   selectModeText: { color: '#4285F4', fontWeight: 'bold' },
   inputContainer: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 20 },
@@ -299,6 +348,14 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: 'center', color: '#888', marginTop: 40 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: '85%', backgroundColor: '#fff', borderRadius: 12, padding: 20 },
+  guideContent: { width: '90%', maxHeight: '80%', backgroundColor: '#fff', borderRadius: 16, padding: 20 },
+  guideScroll: { marginVertical: 15 },
+  guideDesc: { fontSize: 14, color: '#555', lineHeight: 22, marginBottom: 20 },
+  guideItem: { marginBottom: 15, backgroundColor: '#f8f9fa', padding: 15, borderRadius: 8, borderWidth: 1, borderColor: '#eef2ff' },
+  guideCommand: { fontSize: 16, fontWeight: 'bold', color: '#4285F4', marginBottom: 5 },
+  guideDetail: { fontSize: 14, color: '#333', lineHeight: 20 },
+  guideCloseButton: { backgroundColor: '#4285F4', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+  guideCloseButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: '#333' },
   modalDesc: { fontSize: 14, color: '#666', marginBottom: 20, lineHeight: 20 },
   modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 20 },
