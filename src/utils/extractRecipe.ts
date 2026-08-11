@@ -9,7 +9,7 @@ export async function extractRecipeFromUrl(url: string): Promise<{ title: string
     const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
     if (!GEMINI_API_KEY) throw new Error('Gemini API key is missing');
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`;
     
     const prompt = `
       以下のWebページのHTML内容から、料理のレシピ情報を抽出してください。
