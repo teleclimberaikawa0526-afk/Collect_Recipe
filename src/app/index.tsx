@@ -73,7 +73,7 @@ export default function HomeScreen() {
   const renderRecipe = ({ item }: { item: Recipe }) => (
     <TouchableOpacity 
       style={styles.recipeCard}
-      onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: item.id! } })}
+      onPress={() => router.push(`/recipe/${item.id}` as any)}
     >
       <View style={styles.recipeCardContent}>
         {item.imageUrl ? (
