@@ -1,65 +1,110 @@
-export async function extractRecipeFromUrl(url: string): Promise<{ title: string; imageUrl: string; ingredients: string[]; instructions: string[] }> {
+export async function extractRecipeFromUrl(baseUrl: string): Promise<{ title: string; imageUrl: string; ingredients: string[]; instructions: string[] }> {
   try {
-    // 1. URLからHTMLを取得
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Failed to fetch the URL');
-    let html = await response.text();
-
-    // 軽量化のため、不要なタグ（script, style, svg, コメント）を削除
-    html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-    html = html.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
-    html = html.replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, '');
-    html = html.replace(/<!--[\s\S]*?-->/g, '');
-
-    // Gemini 3.5 Flashは最大100万トークン対応のため、余裕を持って30万文字まで渡す
-    const processedHtml = html.length > 300000 ? html.substring(0, 300000) : html;
-
-    // 2. Gemini APIを使用して解析
     const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
     if (!GEMINI_API_KEY) throw new Error('Gemini API key is missing');
-
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    
-    const prompt = `
-      以下のWebページのHTML内容から、料理のレシピ情報を抽出してください。
-      出力は必ず以下のJSON形式のみで行い、他の文章は一切含めないでください。
 
-      {
-        "title": "レシピのタイトル",
-        "imageUrl": "メインの料理画像のURL（見つからない場合は空文字）",
-        "ingredients": ["材料1", "材料2", ...],
-        "instructions": ["手順1", "手順2", ...]
+    let currentUrl = baseUrl;
+    let pagesFetched = 0;
+    const maxPages = 5; // 無限ループ防止のため最大5ページまで
+
+    let finalTitle = 'タイトルなし';
+    let finalImageUrl = '';
+    let finalIngredients: string[] = [];
+    let finalInstructions: string[] = [];
+
+    while (currentUrl && pagesFetched < maxPages) {
+      console.log(`Fetching page ${pagesFetched + 1}: ${currentUrl}`);
+      const response = await fetch(currentUrl);
+      if (!response.ok) throw new Error(`Failed to fetch the URL: ${currentUrl}`);
+      let html = await response.text();
+
+      // 軽量化のため、不要なタグを削除
+      html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+      html = html.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+      html = html.replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, '');
+      html = html.replace(/<!--[\s\S]*?-->/g, '');
+
+      const processedHtml = html.length > 300000 ? html.substring(0, 300000) : html;
+
+      const prompt = `
+        以下のWebページのHTML内容から、料理のレシピ情報を抽出してください。
+        出力は必ず以下のJSON形式のみで行い、他の文章は一切含めないでください。
+
+        {
+          "title": "レシピのタイトル",
+          "imageUrl": "メインの料理画像のURL（見つからない場合は空文字）",
+          "ingredients": ["材料1", "材料2", ...],
+          "instructions": ["手順1", "手順2", ...],
+          "nextPageUrl": "もしレシピの手順の続きなどが次のページにまたがっており、『次へ』などのリンクURLがある場合は、その完全なURL（絶対URL）をここに入れてください。絶対URLが不明な場合は現在のページのURL（ ${currentUrl} ）を元に完全なURLを構築してください。もし続きのページがない場合や判断できない場合は空文字にしてください。"
+        }
+
+        HTML内容:
+        ${processedHtml}
+      `;
+
+      const geminiRes = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+
+      const data = await geminiRes.json();
+      
+      if (!geminiRes.ok) {
+        throw new Error(data.error?.message || 'Failed to extract recipe from AI');
       }
 
-      HTML内容:
-      ${processedHtml}
-    `;
+      const text = data.candidates[0].content.parts[0].text;
+      const recipeData = JSON.parse(text);
 
-    const geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json"
+      // 1ページ目のデータをベースとして保存
+      if (pagesFetched === 0) {
+        finalTitle = recipeData.title || finalTitle;
+        finalImageUrl = recipeData.imageUrl || finalImageUrl;
+      }
+      
+      // 材料をマージ（重複を除く簡易的な処理）
+      if (recipeData.ingredients) {
+        recipeData.ingredients.forEach((ing: string) => {
+          if (!finalIngredients.includes(ing)) finalIngredients.push(ing);
+        });
+      }
+
+      // 手順をマージ
+      if (recipeData.instructions) {
+        finalInstructions = [...finalInstructions, ...recipeData.instructions];
+      }
+
+      // 次のページがあるかチェック
+      if (recipeData.nextPageUrl && recipeData.nextPageUrl.startsWith('http') && recipeData.nextPageUrl !== currentUrl) {
+        // セキュリティのため、元のドメインと同じか簡易チェック（外部サイトへの逸脱防止）
+        try {
+          const originalDomain = new URL(baseUrl).hostname;
+          const nextDomain = new URL(recipeData.nextPageUrl).hostname;
+          if (originalDomain === nextDomain) {
+            currentUrl = recipeData.nextPageUrl;
+          } else {
+            currentUrl = ''; // 違うドメインなら終了
+          }
+        } catch (e) {
+          currentUrl = '';
         }
-      })
-    });
+      } else {
+        currentUrl = ''; // 次のページがなければループ終了
+      }
 
-    const data = await geminiRes.json();
-    
-    if (!geminiRes.ok) {
-      throw new Error(data.error?.message || 'Failed to extract recipe from AI');
+      pagesFetched++;
     }
 
-    const text = data.candidates[0].content.parts[0].text;
-    const recipeData = JSON.parse(text);
-
     return {
-      title: recipeData.title || 'タイトルなし',
-      imageUrl: recipeData.imageUrl || '',
-      ingredients: recipeData.ingredients || [],
-      instructions: recipeData.instructions || []
+      title: finalTitle,
+      imageUrl: finalImageUrl,
+      ingredients: finalIngredients,
+      instructions: finalInstructions
     };
   } catch (error) {
     console.error('Recipe Extraction Error:', error);
