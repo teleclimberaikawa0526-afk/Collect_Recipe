@@ -3,7 +3,16 @@ export async function extractRecipeFromUrl(url: string): Promise<{ title: string
     // 1. URLからHTMLを取得
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch the URL');
-    const html = await response.text();
+    let html = await response.text();
+
+    // 軽量化のため、不要なタグ（script, style, svg, コメント）を削除
+    html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    html = html.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+    html = html.replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, '');
+    html = html.replace(/<!--[\s\S]*?-->/g, '');
+
+    // Gemini 3.5 Flashは最大100万トークン対応のため、余裕を持って30万文字まで渡す
+    const processedHtml = html.length > 300000 ? html.substring(0, 300000) : html;
 
     // 2. Gemini APIを使用して解析
     const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -23,7 +32,7 @@ export async function extractRecipeFromUrl(url: string): Promise<{ title: string
       }
 
       HTML内容:
-      ${html.substring(0, 40000)} // HTMLが長すぎる場合の対策として先頭40000文字を渡す
+      ${processedHtml}
     `;
 
     const geminiRes = await fetch(geminiUrl, {
