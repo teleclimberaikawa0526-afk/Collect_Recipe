@@ -25,7 +25,7 @@ export async function extractRecipeFromUrl(baseUrl: string): Promise<{ title: st
       html = html.replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, '');
       html = html.replace(/<!--[\s\S]*?-->/g, '');
 
-      const processedHtml = html.length > 300000 ? html.substring(0, 300000) : html;
+      const processedHtml = html.length > 100000 ? html.substring(0, 100000) : html;
 
       const prompt = `
         以下のWebページのHTML内容から、料理のレシピ情報を抽出してください。
@@ -43,19 +43,34 @@ export async function extractRecipeFromUrl(baseUrl: string): Promise<{ title: st
         ${processedHtml}
       `;
 
-      const geminiRes = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
-      });
-
-      const data = await geminiRes.json();
+      let geminiRes;
+      let data;
+      let retries = 3;
       
-      if (!geminiRes.ok) {
-        throw new Error(data.error?.message || 'Failed to extract recipe from AI');
+      while (retries > 0) {
+        geminiRes = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
+
+        data = await geminiRes.json();
+        
+        if (geminiRes.ok) {
+          break;
+        } else if (data.error?.message?.includes('high demand') || geminiRes.status === 429 || geminiRes.status === 503) {
+          retries--;
+          console.warn(`Gemini API high demand, retries left: ${retries}`);
+          if (retries === 0) {
+            throw new Error('現在AIサーバーが非常に混み合っています。少し時間をおいてから再度お試しください。');
+          }
+          await new Promise(resolve => setTimeout(resolve, 3000)); // 3秒待機してリトライ
+        } else {
+          throw new Error(data.error?.message || 'Failed to extract recipe from AI');
+        }
       }
 
       const text = data.candidates[0].content.parts[0].text;
