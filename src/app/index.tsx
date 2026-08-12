@@ -249,34 +249,39 @@ export default function HomeScreen() {
       />
 
       {/* Share Modal */}
-      <Modal visible={shareModalVisible} transparent animationType="fade">
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>まとめてシェア</Text>
-            <Text style={styles.modalDesc}>{selectedIds.size}件のレシピを共有する相手のGoogleメールアドレスを入力してください。</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="メールアドレス"
-              value={shareEmail}
-              onChangeText={setShareEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setShareModalVisible(false)}>
-                <Text style={styles.modalCancelText}>キャンセル</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSubmit} onPress={handleBulkShare}>
-                <Text style={styles.modalSubmitText}>共有する</Text>
-              </TouchableOpacity>
+      {shareModalVisible && (
+        <KeyboardAvoidingView 
+          style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 10 }]} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>まとめてシェア</Text>
+              <Text style={styles.modalDesc}>{selectedIds.size}件のレシピを共有する相手のGoogleメールアドレスを入力してください。</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="メールアドレス"
+                value={shareEmail}
+                onChangeText={setShareEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.modalCancel} onPress={() => setShareModalVisible(false)}>
+                  <Text style={styles.modalCancelText}>キャンセル</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalSubmit} onPress={handleBulkShare}>
+                  <Text style={styles.modalSubmitText}>共有する</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+      )}
 
       {/* Voice Guide Modal */}
-      <Modal visible={guideModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
+      {guideModalVisible && (
+        <View style={[StyleSheet.absoluteFill, styles.modalOverlay, { zIndex: 1000, elevation: 10 }]}>
           <View style={styles.guideContent}>
             <Text style={styles.modalTitle}>🎙️ 音声コントロールの使い方</Text>
             <ScrollView style={styles.guideScroll}>
@@ -308,7 +313,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      )}
     </SafeAreaView>
   );
 }
