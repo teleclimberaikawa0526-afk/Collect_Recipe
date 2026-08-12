@@ -28,19 +28,28 @@
 - When storing API keys like `EXPO_PUBLIC_GEMINI_API_KEY`, ensure they are set in the EAS environment variables or `.env` files.
 - Remember that native changes or new native libraries require a full `eas build` cycle. Pure JS updates can usually be previewed instantly in dev environments.
 
-## 4. Keyboard Handling in React Native
-- **Issue**: When inputting text (e.g. in Modals or at the bottom of ScrollViews), the software keyboard can overlap and hide the `TextInput`.
-- **Solution**: Always use `KeyboardAvoidingView` from `react-native` to wrap the content that contains inputs.
-- **Implementation Pattern**:
+## 4. Keyboard Handling in React Native (Android / Expo)
+- **Issue**: When inputting text, the software keyboard can overlap and hide the `TextInput`.
+- **Solution**: Use `KeyboardAvoidingView` from `react-native`. However, there are critical caveats for Android.
+- **Android `behavior` caveat**: While `behavior={undefined}` often works when `windowSoftInputMode="adjustResize"` is active, Edge-to-Edge layouts or transparent status bars often break this. **Always explicitly use `behavior={'padding'}` (or `height`) for Android as well.**
   ```tsx
-  import { KeyboardAvoidingView, Platform } from 'react-native';
-
   <KeyboardAvoidingView 
     style={{ flex: 1 }} 
-    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0} // Adjust offset based on Header/Navbar height
+    behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20} 
   >
-    {/* ScrollView or Modal Content Here */}
-  </KeyboardAvoidingView>
   ```
-- **Modal Context**: When using a `<Modal>`, place the `KeyboardAvoidingView` as the immediate child wrapping the modal content overlay to ensure it pushes the UI up correctly.
+- **The `<Modal>` caveat (Android)**: React Native's `<Modal transparent={true}>` opens in a separate window on Android, causing `KeyboardAvoidingView` to **fail completely**. 
+  - **Workaround**: Do NOT use `<Modal>` for simple popups containing TextInputs on Android. Instead, conditionally render a full-screen absolute View (`StyleSheet.absoluteFill`) at the root level of your component tree, wrapped in a `KeyboardAvoidingView`.
+  ```tsx
+  {isModalVisible && (
+    <KeyboardAvoidingView 
+      style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 10 }]} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.modalOverlay}>
+        {/* Modal content with TextInput */}
+      </View>
+    </KeyboardAvoidingView>
+  )}
+  ```
