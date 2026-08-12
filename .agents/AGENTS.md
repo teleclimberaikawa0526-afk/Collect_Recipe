@@ -27,3 +27,20 @@
 ## 3. Expo EAS Build Secrets
 - When storing API keys like `EXPO_PUBLIC_GEMINI_API_KEY`, ensure they are set in the EAS environment variables or `.env` files.
 - Remember that native changes or new native libraries require a full `eas build` cycle. Pure JS updates can usually be previewed instantly in dev environments.
+
+## 4. Keyboard Handling in React Native
+- **Issue**: When inputting text (e.g. in Modals or at the bottom of ScrollViews), the software keyboard can overlap and hide the `TextInput`.
+- **Solution**: Always use `KeyboardAvoidingView` from `react-native` to wrap the content that contains inputs.
+- **Implementation Pattern**:
+  ```tsx
+  import { KeyboardAvoidingView, Platform } from 'react-native';
+
+  <KeyboardAvoidingView 
+    style={{ flex: 1 }} 
+    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0} // Adjust offset based on Header/Navbar height
+  >
+    {/* ScrollView or Modal Content Here */}
+  </KeyboardAvoidingView>
+  ```
+- **Modal Context**: When using a `<Modal>`, place the `KeyboardAvoidingView` as the immediate child wrapping the modal content overlay to ensure it pushes the UI up correctly.
