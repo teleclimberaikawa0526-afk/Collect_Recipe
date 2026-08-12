@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity, TextInput, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity, TextInput, Alert, Image, Linking, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -117,17 +117,28 @@ export default function RecipeDetailScreen() {
   }
 
   return (
-    <ScrollView 
-      ref={scrollViewRef}
-      style={styles.container}
-      onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
-      scrollEventThrottle={16}
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <Text style={styles.title}>{recipe.title}</Text>
-      
-      {recipe.imageUrl ? (
-        <Image source={{ uri: recipe.imageUrl }} style={styles.heroImage} />
-      ) : null}
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.container}
+        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
+      >
+        <Text style={styles.title}>{recipe.title}</Text>
+        
+        {recipe.imageUrl ? (
+          <Image source={{ uri: recipe.imageUrl }} style={styles.heroImage} />
+        ) : null}
+        
+        {recipe.url ? (
+          <TouchableOpacity onPress={() => Linking.openURL(recipe.url)} style={styles.sourceLinkContainer}>
+            <Text style={styles.sourceLinkText}>元のWebサイトを見る 🔗</Text>
+          </TouchableOpacity>
+        ) : null}
       
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>材料</Text>
@@ -188,6 +199,7 @@ export default function RecipeDetailScreen() {
 
       <View style={{ height: 100 }} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -211,5 +223,7 @@ const styles = StyleSheet.create({
   shareInputContainer: { flexDirection: 'row' },
   shareInput: { flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 15, paddingVertical: 10, marginRight: 10 },
   shareButton: { backgroundColor: '#4285F4', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, borderRadius: 8 },
-  shareButtonText: { color: '#fff', fontWeight: 'bold' }
+  shareButtonText: { color: '#fff', fontWeight: 'bold' },
+  sourceLinkContainer: { marginBottom: 20, alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 15, backgroundColor: '#f0f5ff', borderRadius: 8, borderWidth: 1, borderColor: '#d0e0ff' },
+  sourceLinkText: { color: '#4285F4', fontWeight: 'bold', fontSize: 14 }
 });

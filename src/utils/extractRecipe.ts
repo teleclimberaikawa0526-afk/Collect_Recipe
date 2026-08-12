@@ -82,11 +82,9 @@ export async function extractRecipeFromUrl(baseUrl: string): Promise<{ title: st
         finalImageUrl = recipeData.imageUrl || finalImageUrl;
       }
       
-      // 材料をマージ（重複を除く簡易的な処理）
-      if (recipeData.ingredients) {
-        recipeData.ingredients.forEach((ing: string) => {
-          if (!finalIngredients.includes(ing)) finalIngredients.push(ing);
-        });
+      // 材料は1ページ目のみから取得する（2ページ目以降の不要な取得を防ぐ）
+      if (pagesFetched === 0 && recipeData.ingredients) {
+        finalIngredients = recipeData.ingredients;
       }
 
       // 手順をマージ

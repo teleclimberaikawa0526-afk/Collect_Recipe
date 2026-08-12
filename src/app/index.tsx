@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Alert, Image, Modal, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Alert, Image, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { collection, addDoc, query, where, onSnapshot, or, deleteDoc, doc, updateDoc, arrayUnion } from 'firebase/firestore';
@@ -250,7 +250,7 @@ export default function HomeScreen() {
 
       {/* Share Modal */}
       <Modal visible={shareModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>まとめてシェア</Text>
             <Text style={styles.modalDesc}>{selectedIds.size}件のレシピを共有する相手のGoogleメールアドレスを入力してください。</Text>
@@ -271,7 +271,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Voice Guide Modal */}
