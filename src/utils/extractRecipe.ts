@@ -19,13 +19,33 @@ export async function extractRecipeFromUrl(baseUrl: string): Promise<{ title: st
       if (!response.ok) throw new Error(`Failed to fetch the URL: ${currentUrl}`);
       let html = await response.text();
 
+      // JSON-LD（構造化データ）はレシピ情報の宝庫なので保護する
+      const jsonLdMatch = html.match(/<script type="application\/ld\+json"?[^>]*>[\s\S]*?<\/script>/gi);
+      let jsonLdString = '';
+      if (jsonLdMatch) {
+        jsonLdString = jsonLdMatch.join('\n');
+      }
+
+      // bodyタグの中身だけを抽出（head内の巨大なメタデータやJSを捨てる）
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      if (bodyMatch) {
+        html = bodyMatch[1];
+      }
+
       // 軽量化のため、不要なタグを削除
       html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
       html = html.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
       html = html.replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, '');
       html = html.replace(/<!--[\s\S]*?-->/g, '');
+      
+      // 超巨大なbase64画像データを削除
+      html = html.replace(/data:image\/[^;]+;base64,[a-zA-Z0-9+/]+=*/gi, '');
 
-      const processedHtml = html.length > 100000 ? html.substring(0, 100000) : html;
+      // 抽出したJSON-LDを先頭にくっつける
+      html = jsonLdString + '\n' + html;
+
+      // 15万文字まで許容（Flashモデルは100万トークン対応なので問題なし。高負荷時はリトライで対応）
+      const processedHtml = html.length > 150000 ? html.substring(0, 150000) : html;
 
       const prompt = `
         以下のWebページのHTML内容から、料理のレシピ情報を抽出してください。
